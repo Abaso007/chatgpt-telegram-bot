@@ -259,7 +259,7 @@ class ChatGPTTelegramBot:
             return
 
         if self.is_group_chat(update) and self.config['ignore_group_transcriptions']:
-            logging.info(f'Transcription coming from group chat, ignoring...')
+            logging.info('Transcription coming from group chat, ignoring...')
             return
 
         chat_id = update.effective_chat.id
@@ -699,10 +699,10 @@ class ChatGPTTelegramBot:
         try:
             await context.bot.edit_message_text(
                 chat_id=chat_id,
-                message_id=int(message_id) if not is_inline else None,
+                message_id=None if is_inline else int(message_id),
                 inline_message_id=message_id if is_inline else None,
                 text=text,
-                parse_mode=constants.ParseMode.MARKDOWN if markdown else None
+                parse_mode=constants.ParseMode.MARKDOWN if markdown else None,
             )
         except telegram.error.BadRequest as e:
             if str(e).startswith("Message is not modified"):
@@ -710,9 +710,9 @@ class ChatGPTTelegramBot:
             try:
                 await context.bot.edit_message_text(
                     chat_id=chat_id,
-                    message_id=int(message_id) if not is_inline else None,
+                    message_id=None if is_inline else int(message_id),
                     inline_message_id=message_id if is_inline else None,
-                    text=text
+                    text=text,
                 )
             except Exception as e:
                 logging.warning(f'Failed to edit message: {str(e)}')
@@ -795,12 +795,12 @@ class ChatGPTTelegramBot:
         """
         Checks if the message was sent from a group chat
         """
-        if not update.effective_chat:
-            return False
-        return update.effective_chat.type in [
-            constants.ChatType.GROUP,
-            constants.ChatType.SUPERGROUP
-        ]
+        return (
+            update.effective_chat.type
+            in [constants.ChatType.GROUP, constants.ChatType.SUPERGROUP]
+            if update.effective_chat
+            else False
+        )
 
     async def is_user_in_group(self, update: Update, context: CallbackContext, user_id: int) -> bool:
         """
@@ -858,10 +858,7 @@ class ChatGPTTelegramBot:
         admin_user_ids = self.config['admin_user_ids'].split(',')
 
         # Check if user is in the admin user list
-        if str(user_id) in admin_user_ids:
-            return True
-
-        return False
+        return str(user_id) in admin_user_ids
 
     def get_user_budget(self, user_id) -> float | None:
         """
@@ -968,7 +965,6 @@ class ChatGPTTelegramBot:
                 self.usage["guests"].add_chat_tokens(used_tokens, self.config['token_price'])
         except Exception as e:
             logging.warning(f'Failed to add tokens to usage_logs: {str(e)}')
-            pass
 
     def get_reply_to_message_id(self, update: Update):
         """
